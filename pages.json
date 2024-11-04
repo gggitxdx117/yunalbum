@@ -1,0 +1,116 @@
+{
+  "pages": [{
+      "path": "pages/index/index",
+      "style": {
+        "enablePullDownRefresh": true,
+        "usingComponents": {
+          "loginTopic": "/components/loginTopic/loginTopic"
+        },
+        "app-plus": {
+          "pullToRefresh": {
+            "support": true,
+            "color": "#ff3333",
+            "style": "default",
+            "contentdown": {
+              "caption": "下拉可刷新"
+            },
+            "contentover": {
+              "caption": "释放可刷新"
+            },
+            "contentrefresh": {
+              "caption": "正在刷新"
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录个人中心",
+        "h5": {
+          "titleNView": {
+            "autoBackButton": false,
+            "buttons": [
+              {
+                "type": "home",
+                "float": "left"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "path": "pages/view/view",
+      "style": {
+        "enablePullDownRefresh": true,
+        "usingComponents": {
+          "loginTopic": "/components/loginTopic/loginTopic"
+        },
+        "app-plus": {
+          "pullToRefresh": {
+            "support": true,
+            "color": "#ff3333",
+            "style": "default",
+            "contentdown": {
+              "caption": "下拉可刷新"
+            },
+            "contentover": {
+              "caption": "释放可刷新"
+            },
+            "contentrefresh": {
+              "caption": "正在刷新"
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "pages/user/user",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    },
+    {
+      "path" : "pages/user/avatar",
+      "style" : 
+      {
+        "navigationBarTitleText" : "头像"
+      }
+    },
+    {
+      "path" : "pages/view/invite",
+      "style" : 
+      {
+        "navigationBarTitleText" : "邀请加入相册"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "龙团出品，必属精品",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8",
+    "app-plus": {
+      "background": "#efeff4"
+    }
+  },
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#55aaff",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [{
+      "pagePath": "pages/index/index",
+      "iconPath": "static/icons/home.png",
+      "selectedIconPath": "static/icons/home-fill.png",
+      "text": "相册"
+    }, {
+      "pagePath": "pages/user/user",
+      "iconPath": "static/icons/customer.png",
+      "selectedIconPath": "static/icons/customer-fill.png",
+      "text": "我的"
+    }]
+  }
+}
