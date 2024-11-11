@@ -85,6 +85,13 @@
       {
         "navigationBarTitleText" : "邀请加入相册"
       }
+    },
+    {
+      "path" : "pages/atm-web-view/atm-web-view",
+      "style" : 
+      {
+        "navigationBarTitleText" : "发现精彩"
+      }
     }
   ],
   "globalStyle": {
@@ -106,6 +113,11 @@
       "iconPath": "static/icons/home.png",
       "selectedIconPath": "static/icons/home-fill.png",
       "text": "相册"
+    }, {
+      "pagePath": "pages/atm-web-view/atm-web-view",
+      "iconPath": "static/icons/atm.png",
+      "selectedIconPath": "static/icons/atm-fill.png",
+      "text": "发现"
     }, {
       "pagePath": "pages/user/user",
       "iconPath": "static/icons/customer.png",

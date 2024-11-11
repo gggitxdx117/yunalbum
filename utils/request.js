@@ -7,7 +7,7 @@ export const request = (options) => {
       ...options,
       header: {
         ...options.header,
-        'miniVersion': '1.0.1', // 自动传入小程序版本号
+        'miniVersion': '1.0.3', // 自动传入小程序版本号
         'sessionKey': sessionKey, // 自动传入 sessionKey
         'accessToken': accessToken // 自动传入 accessToken
       },

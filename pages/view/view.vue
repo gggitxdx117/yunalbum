@@ -10,6 +10,7 @@
         <uni-grid v-if="images.length > 0" class="block" :column="2" @change="clickHandle" :showBorder="false">
           <uni-grid-item v-for="(item, index) in images" :index="index" :key="index">
             <view class="image-list">
+              <checkbox :value="index" v-if="settings" />
               <image style="width: 100%; height: 100%; background-color: #eeeeee;border-radius: 5%;"
                 :src="item + '?x-image-process=style/style-b25f'" mode="aspectFill" />
             </view>
@@ -28,9 +29,6 @@
       </view>
       <uni-load-more :status="loadStatus" />
     </view>
-    <uni-popup ref="imagePopup" type="center" :animation="false">
-      <image mode="aspectFit" :src="showSrc" @click="closePopup" style="width: 90vw;height: 90vh;margin-top: 5vh;" />
-    </uni-popup>
     <uni-fab :content="contentForFab" horizontal="right" vertical="bottom" direction="vertical" popMenu
       @trigger="triggerFab"></uni-fab>
     <!-- 分享示例 -->
@@ -65,7 +63,6 @@
         code: '',
         inviteCode: [],
         inviteCodeCurrent: '',
-        showSrc: '',
         title: '',
         images: [],
         infos: [],
@@ -76,6 +73,7 @@
         hasMoreForInfo: true, // 是否还有更多图片
         permission: 0,
         hasv: false,
+        settings: false,
         contentForFab: [{
             iconPath: '/static/icons/home.png',
             text: '首页',
@@ -139,6 +137,12 @@
                       active: false
                     })
                   }
+                  // 可以删除图片资源
+                  this.contentForFab.push({
+                    iconPath: '/static/icons/settings.png',
+                    text: '管理',
+                    active: false
+                  })
                 }
                 // 设置头文字
                 uni.setNavigationBarTitle({
@@ -290,9 +294,12 @@
       },
       // 点击放大图片
       clickHandle(e) {
-        console.log(e)
-        this.showSrc = this.images[e.detail.index]
-        this.$refs.imagePopup.open()
+        // 预览图片
+        uni.previewImage({
+          urls: this.images,
+          showmenu: true,
+          current: e.detail.index,
+        });
       },
       // 点击tab切换内容
       onClickItem(e) {
@@ -307,10 +314,6 @@
       // 删除图片内容
       onDeleteInfo() {
 
-      },
-      // 关闭图片预览
-      closePopup() {
-        this.$refs.imagePopup.close()
       },
       // 解析XML中的Key值
       parseXML(xmlData) {
@@ -341,6 +344,8 @@
           this.uploadFile('image')
         } else if (e.item.text === '视频') {
           this.uploadFile('video')
+        } else if (e.item.text === '管理') {
+          this.settings = true
         } else if (e.item.text === '分享') {
           // #ifdef APP || APP-PLUS
           uni.share({
@@ -597,5 +602,18 @@
 
   .info-block {
     text-align: center;
+  }
+  .image-list uni-checkbox {
+    position: absolute;
+    z-index: 2;
+    right: 2vw;
+    top: 2vw;
+    padding-left: calc(44vw - 22px);
+    padding-bottom: calc(44vw - 22px);
+    padding-right: 1vw;
+    padding-top: 1vw;
+  }
+  .image-list uni-checkbox .uni-checkbox-input {
+    margin: 0;
   }
 </style>
