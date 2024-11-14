@@ -41,6 +41,7 @@
         selected: 0,
         loadStatus: 'noMore',
         list: [],
+        permission: '',
         imageWidth: 0,
         contentForFab: [{
             iconPath: '/static/icons/zoom-in.png',
@@ -138,6 +139,14 @@
               if (data.status === 200) {
                 this.list = data.result.list
                 this.permission = data.result.permission
+                // 判断创建相册的权限和入口
+                if (this.permission > 0) {
+                  this.contentForFab.unshift({
+                        iconPath: '/static/icons/pictures.png',
+                        text: '创建',
+                        active: false
+                  })
+                }
               }
             } else {
               console.error('Failed to fetch list:', res);
@@ -218,6 +227,43 @@
           // #ifdef WEB || MP-WEIXIN
           this.$refs.share.open()
           // #endif
+        } else if (e.item.text === '创建') {
+          uni.showModal({
+          	title: '提示',
+          	content: '',
+            editable: true,
+            placeholderText: '请输入相册名称',
+          	success: function (res) {
+          		if (res.confirm) {
+                uni.showLoading({
+                  title: '创建中',
+                  mask: true
+                })
+                request({
+                  url: 'https://wx.ctokz.com/wx/Album/create',
+                  method: 'post',
+                  data: {
+                    albumName: res.content
+                  }
+                })
+                .then(res => {
+                  uni.hideLoading()
+                  if (res.statusCode === 200 && res.data.status === 200) {
+                    uni.showToast({
+                      title: '创建成功'
+                    })
+                    that.getAlbumList()
+                  } else {
+                    uni.showToast({
+                      title: res.data.message
+                    })
+                  }
+                })
+          		} else if (res.cancel) {
+          			console.log('用户点击取消');
+          		}
+          	}
+          });
         }
       },
       // 分享按钮

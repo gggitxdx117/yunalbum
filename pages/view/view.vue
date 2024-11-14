@@ -7,35 +7,67 @@
     </view>
     <view class="content">
       <view v-if="currentTab === 0">
-        <uni-grid v-if="images.length > 0" class="block" :column="2" @change="clickHandle" :showBorder="false">
-          <uni-grid-item v-for="(item, index) in images" :index="index" :key="index">
-            <view class="image-list">
-              <checkbox :value="index" v-if="settings" />
-              <image style="width: 100%; height: 100%; background-color: #eeeeee;border-radius: 5%;"
-                :src="item + '?x-image-process=style/style-b25f'" mode="aspectFill" />
-            </view>
-          </uni-grid-item>
-        </uni-grid>
+        <checkbox-group @change="checkboxChange">
+          <uni-grid v-if="images.length > 0" class="block" :column="4" :showBorder="false">
+            <uni-grid-item v-for="(item, index) in images" :index="index" :key="index">
+              <view class="image-list">
+                <checkbox :value="index.toString()" v-if="settings" />
+                <image style="width: 100%; height: 100%; background-color: #eeeeee;"
+                  :src="item + '?x-image-process=style/w-300'" mode="aspectFill" @tap="clickHandle(index)" />
+              </view>
+            </uni-grid-item>
+          </uni-grid>
+        </checkbox-group>
       </view>
-      <view v-if="currentTab === 1 && hasv">
-        <uni-grid v-if="infos.length > 0" class="info-block" :column="1" :showBorder="false">
-          <uni-grid-item v-for="(item, index) in infos" :index="index" :key="index">
+      <view v-if="currentTab === 1 && hasv" class="infos-box">
+        <checkbox-group @change="checkboxChange">
+          <block v-for="(item, index) in infos" :index="index" :key="index">
             <view class="info-list">
+              <checkbox :value="index.toString()" v-if="settings" />
               <video :src="item" controls>
               </video>
             </view>
-          </uni-grid-item>
-        </uni-grid>
+          </block>
+        </checkbox-group>
       </view>
       <uni-load-more :status="loadStatus" />
     </view>
-    <uni-fab :content="contentForFab" horizontal="right" vertical="bottom" direction="vertical" popMenu
-      @trigger="triggerFab"></uni-fab>
+    <uni-fab ref="uniFab" :content="contentForFab" horizontal="right" vertical="bottom" direction="vertical" popMenu
+      @trigger="triggerFab" @fabClick="fabClick"></uni-fab>
     <!-- 分享示例 -->
     <!-- #ifdef WEB || MP-WEIXIN -->
     <uni-popup ref="share" type="share" safeArea backgroundColor="#fff">
       <wxShare @select="shareSelect"></wxShare>
     </uni-popup>
+    <!-- 海报生成 -->
+    <uni-popup ref="canvas" mode="center" safeArea backgroundColor="#fff" @maskClick="fabClick">
+      <view class="canvas">
+        <view class="canvas-box" v-if="showCanvas">
+          <canvas canvas-id="posterCanvas" style="width: 300px; height: 300px;"></canvas>
+        </view>
+        <view class="canvas-image">
+          <image style="width: 100%; height: 100%;" mode="aspectFill" :src="thumbUrl" />
+        </view>
+      </view>
+      <button @click="editThumbUrl" :disabled="showCanvas">应用相册海报</button>
+    </uni-popup>
+    <!-- 管理模块 -->
+    <uni-drawer ref="settings" mode="right" mask-click width="260">
+      <uni-card padding="0" spacing="0">
+        <template v-slot:cover>
+          <view class="custom-cover">
+            <image class="cover-image" mode="aspectFill" :src="thumbUrl" @tap="selectImages" />
+            <view class="cover-content">
+              <text class="uni-subtitle uni-white">{{ title }}</text>
+            </view>
+          </view>
+        </template>
+        <uni-list>
+          <uni-list-item title="修改标题" showArrow clickable @click="editTitle()"></uni-list-item>
+          <uni-list-item title="删除相册" showArrow clickable @click="delAlbum()"></uni-list-item>
+        </uni-list>
+      </uni-card>
+    </uni-drawer>
     <!-- #endif -->
   </view>
 </template>
@@ -57,6 +89,7 @@
       return {
         loadStatus: 'noMore',
         currentTab: 0,
+        showCanvas: false,
         activeColor: '#007aff',
         styleType: 'text',
         tabItems: ['图片'],
@@ -64,16 +97,18 @@
         inviteCode: [],
         inviteCodeCurrent: '',
         title: '',
+        thumbUrl: '',
         images: [],
         infos: [],
         imagePage: 1, // 当前页码
         infoPage: 1, // 当前页码
-        pageSize: 10, // 每页加载的图片数量
+        pageSize: 40, // 每页加载的图片数量
         hasMoreForImage: true, // 是否还有更多图片
         hasMoreForInfo: true, // 是否还有更多图片
         permission: 0,
         hasv: false,
         settings: false,
+        selectedValues: [],
         contentForFab: [{
             iconPath: '/static/icons/home.png',
             text: '首页',
@@ -85,6 +120,7 @@
             active: false
           }
         ],
+        contentForFabBk: [],
         // 上传参数
         uploadFromData: {}
       }
@@ -114,6 +150,7 @@
               if (res.data.status === 200) {
                 // 判断权限
                 this.permission = res.data.result.permission;
+                this.thumbUrl = res.data.result.thumbUrl;
                 this.inviteCode = res.data.result.inviteCode;
                 this.hasv = res.data.result.hasv;
                 if (res.data.result.hasv === true) {
@@ -137,10 +174,19 @@
                       active: false
                     })
                   }
-                  // 可以删除图片资源
+                  // 可以编辑相册
+                  this.contentForFab.push({
+                    iconPath: '/static/icons/delete.png',
+                    text: '编辑',
+                    active: false
+                  })
+                }
+                // 设置管理按扭
+                if (res.data.result.permission >= 4) {
+                  // 可以管理相册信息
                   this.contentForFab.push({
                     iconPath: '/static/icons/settings.png',
-                    text: '管理',
+                    text: '设置',
                     active: false
                   })
                 }
@@ -298,7 +344,7 @@
         uni.previewImage({
           urls: this.images,
           showmenu: true,
-          current: e.detail.index,
+          current: e,
         });
       },
       // 点击tab切换内容
@@ -312,40 +358,213 @@
         }
       },
       // 删除图片内容
-      onDeleteInfo() {
+      onDeleteInfo(e) {
+        let that = this
+        that.settings = false
 
-      },
-      // 解析XML中的Key值
-      parseXML(xmlData) {
-        const keyMatch = xmlData.match(/<Key>(.*?)<\/Key>/);
-        if (keyMatch && keyMatch[1]) {
-          return keyMatch[1]
-        } else {
-          console.error('Key element not found in XML data');
+        if (this.selectedValues.length) {
+          let count = this.selectedValues.length
+          let current = 1
+          let url = ''
+          uni.showLoading({
+            title: `正在删除 ${current} / ${count}`,
+            mask: true
+          })
+          // 执行删除，一条一条删除
+          for (let s of this.selectedValues) {
+            if (this.currentTab === 0) {
+              url = this.images[Number(s)]
+            } else {
+              url = this.infos[Number(s)]
+            }
+            current += 1
+            request({
+                url: 'https://wx.ctokz.com/wx/Album/deleteImage',
+                method: 'post',
+                data: {
+                  url: url,
+                  code: this.code
+                }
+              })
+              .then(res => {
+                if (res.statusCode === 200) {
+                  if (res.data.status !== 200) {
+                    uni.showToast({
+                      title: res.data.message
+                    })
+                  } else {
+                    if (this.currentTab === 0) {
+                      that.images = that.images.filter(item => item !== url);
+                    } else {
+                      that.infos = that.infos.filter(item => item !== url);
+                    }
+                    uni.showLoading({
+                      title: `正在删除 ${current} / ${count}`,
+                      mask: true
+                    })
+                  }
+                }
+                if (current >= count) {
+                  uni.hideLoading()
+                }
+              })
+              .catch(err => {
+                if (current >= count) {
+                  uni.hideLoading()
+                }
+                console.log(err)
+              })
+          }
         }
       },
-      // 获取文件后缀的方法
-      getFileExtension(filePath) {
-        return filePath.split('.').pop();
+      checkboxChange(e) {
+        this.selectedValues = e.detail.value
       },
-      // 获取文件名的方法
-      getFileName(filePath) {
-        return filePath.split('/').pop();
+      // 修改相册名称
+      editTitle() {
+        let that = this
+        uni.showModal({
+          title: '修改相册名称',
+          placeholderText: '请输入新的名称',
+          content: that.title,
+          editable: true,
+          success: function(res) {
+            if (res.confirm === true) {
+              request({
+                  url: 'https://wx.ctokz.com/wx/Album/editTitle',
+                  method: 'post',
+                  data: {
+                    code: that.code,
+                    title: res.content
+                  }
+                })
+                .then(res => {
+                  if (res.statusCode === 200) {
+                    if (res.data.status === 200) {
+                      that.title = res.data.result.title
+                      uni.showToast({
+                        title: '修改成功'
+                      })
+                    } else {
+                      uni.showToast({
+                        title: res.data.message
+                      })
+                    }
+                  }
+                })
+            }
+          }
+        })
+      },
+      // 修改相册缩略图
+      editThumbUrl() {
+        let that = this
+        request({
+            url: 'https://wx.ctokz.com/wx/Album/editThumbUrl',
+            method: 'post',
+            data: {
+              code: that.code,
+              thumbUrl: that.thumbUrl
+            }
+          })
+          .then(res => {
+            if (res.statusCode === 200) {
+              if (res.data.status === 200) {
+                // 需要刷新首页信息
+                uni.setStorageSync('refreshIndexData', true)
+                uni.showToast({
+                  title: '保存成功'
+                })
+                that.$refs.canvas.close()
+                that.fabClick()
+              } else {
+                uni.showToast({
+                  title: res.data.message
+                })
+              }
+            }
+          })
+      },
+      // 删除相册
+      delAlbum() {
+        let that = this
+        uni.showModal({
+          title: '删除提示',
+          content: '删除后无法恢复，请确认',
+          success: function(res) {
+            request({
+                url: 'https://wx.ctokz.com/wx/Album/delAlbum',
+                method: 'post',
+                data: {
+                  code: that.code
+                }
+              })
+              .then(res => {
+                if (res.statusCode === 200) {
+                  if (res.data.status === 200) {
+                    // 需要刷新首页信息
+                    uni.setStorageSync('refreshIndexData', true)
+                    // 跳转到首页
+                    that.toHome()
+                  } else {
+                    uni.showToast({
+                      title: res.data.message
+                    })
+                  }
+                }
+              })
+          }
+        })
+      },
+      fabClick() {
+        if (this.settings === true) {
+          this.settings = false
+          this.contentForFab = this.contentForFabBk
+        }
+      },
+      // 选择图片生成海报
+      selectImages() {
+        let that = this
+        that.settings = true
+        that.$refs.uniFab.isShow = true
+        that.currentTab = 0
+        that.contentForFabBk = that.contentForFab
+        that.contentForFab = [{
+          iconPath: '/static/icons/gallery.png',
+          text: '生成海报',
+          active: false
+        }]
+        that.$refs.settings.close()
       },
       // 点击菜单
       triggerFab(e) {
         let that = this
+        // console.log(that.$refs.uniFab)
+        that.$refs.uniFab.isShow = false
         // 判断菜单事件
         if (e.item.text === '首页') {
-          uni.navigateTo({
-            url: `/pages/index/index`
-          });
+          this.toHome()
         } else if (e.item.text === '照片') {
-          this.uploadFile('image')
+          that.uploadFile('image')
         } else if (e.item.text === '视频') {
-          this.uploadFile('video')
-        } else if (e.item.text === '管理') {
-          this.settings = true
+          that.uploadFile('video')
+        } else if (e.item.text === '删除') {
+          that.onDeleteInfo()
+          that.settings = false
+          that.contentForFab = that.contentForFabBk
+        } else if (e.item.text === '编辑') {
+          that.settings = true
+          that.$refs.uniFab.isShow = true
+          that.contentForFabBk = that.contentForFab
+          that.contentForFab = [{
+            iconPath: '/static/icons/delete.png',
+            text: '删除',
+            active: false
+          }]
+        } else if (e.item.text === '设置') {
+          that.$refs.settings.open()
+        } else if (e.item.text === '生成海报') {
+          that.createPoster()
         } else if (e.item.text === '分享') {
           // #ifdef APP || APP-PLUS
           uni.share({
@@ -367,23 +586,39 @@
           // #endif
           // #ifdef WEB || MP-WEIXIN
           // 让用户选择分享什么权限
-          if (this.inviteCode.length > 0) {
-            let that = this
+          if (that.inviteCode.length > 0) {
             uni.showActionSheet({
-            	itemList: ['分享管理权限', '分享编辑权限', '分享阅读权限'],
-            	success: function (res) {
+              itemList: ['分享管理权限', '分享编辑权限', '分享阅读权限'],
+              success: function(res) {
                 that.inviteCodeCurrent = that.inviteCode[res.tapIndex]
                 that.$refs.share.open()
-            	},
-            	fail: function (res) {
-            		console.log(res.errMsg);
-            	}
+              },
+              fail: function(res) {
+                console.log(res.errMsg);
+              }
             });
           } else {
-            this.$refs.share.open()
+            that.$refs.share.open()
           }
           // #endif
         }
+      },
+      // 解析XML中的Key值
+      parseXML(xmlData) {
+        const keyMatch = xmlData.match(/<Key>(.*?)<\/Key>/);
+        if (keyMatch && keyMatch[1]) {
+          return keyMatch[1]
+        } else {
+          console.error('Key element not found in XML data');
+        }
+      },
+      // 获取文件后缀的方法
+      getFileExtension(filePath) {
+        return filePath.split('.').pop();
+      },
+      // 获取文件名的方法
+      getFileName(filePath) {
+        return filePath.split('/').pop();
       },
       // 点击上传文件
       uploadFile(mediaType = 'image') {
@@ -584,6 +819,133 @@
       // 分享按钮
       shareSelect(data) {
         console.log(data)
+      },
+      toHome() {
+        uni.switchTab({
+          url: `/pages/index/index`
+        });
+      },
+      async createPoster() {
+        this.$refs.canvas.open()
+        this.showCanvas = true;
+        const ctx = uni.createCanvasContext('posterCanvas');
+
+        const imageFiles = await Promise.all(this.selectedValues.map(s => this.downloadFile(this.images[Number(s)] + '?x-image-process=style/w-300')));
+
+        const count = imageFiles.length;
+        const sizes = this.calculateSizes(count);
+
+        for (let i = 0; i < count; i++) {
+          const img = imageFiles[i].tempFilePath;
+          const {
+            imgWidth,
+            imgHeight,
+            orientation
+          } = await this.getImageInfoExtended(img);
+          const {
+            sx,
+            sy,
+            sSize
+          } = this.getCenterCrop(imgWidth, imgHeight, orientation);
+
+          const x = (i % sizes.cols) * sizes.size;
+          const y = Math.floor(i / sizes.cols) * sizes.size;
+
+          ctx.save();
+          ctx.drawImage(img, sx, sy, sSize, sSize, x, y, sizes.size, sizes.size);
+        }
+
+        ctx.draw(false, () => {
+          uni.canvasToTempFilePath({
+            canvasId: 'posterCanvas',
+            success: (res) => {
+              if (res.tempFilePath.indexOf('data:image') === 0) {
+                // 已经是 base64 数据
+                this.thumbUrl = res.tempFilePath;
+                this.showCanvas = false;
+              } else {
+                // 需要获取 base64 数据
+                uni.getFileSystemManager().readFile({
+                  filePath: res.tempFilePath,
+                  encoding: 'base64',
+                  success: (res) => {
+                    this.thumbUrl = 'data:image/png;base64,' + res.data;
+                    this.showCanvas = false;
+                  },
+                  fail: (err) => {
+                    console.error('生成海报失败:', err);
+                  }
+                });
+              }
+            },
+            fail: (err) => {
+              console.error('生成海报失败:', err);
+            }
+          });
+        });
+      },
+      calculateSizes(count) {
+        const canvasSize = 300;
+        let cols = Math.ceil(Math.sqrt(count));
+        let rows = Math.ceil(count / cols);
+        let size = canvasSize / cols;
+        return {
+          cols,
+          rows,
+          size
+        };
+      },
+      downloadFile(url) {
+        return new Promise((resolve, reject) => {
+          uni.downloadFile({
+            url: url,
+            success: (res) => {
+              if (res.statusCode === 200) {
+                resolve(res);
+              } else {
+                reject(new Error('下载失败'));
+              }
+            },
+            fail: (err) => {
+              reject(err);
+            }
+          });
+        });
+      },
+      getImageInfoExtended(imgPath) {
+        return new Promise((resolve, reject) => {
+          uni.getImageInfo({
+            src: imgPath,
+            success: (res) => {
+              resolve({
+                imgWidth: res.width,
+                imgHeight: res.height,
+                orientation: res.orientation || 'up'
+              });
+            },
+            fail: (err) => {
+              reject(err);
+            }
+          });
+        });
+      },
+      getCenterCrop(imgWidth, imgHeight, orientation) {
+        let size = Math.min(imgWidth, imgHeight);
+        let sx = (imgWidth - size) / 2;
+        let sy = (imgHeight - size) / 2;
+
+        if (orientation === 'left' || orientation === 'right') {
+          // Swap width and height if the orientation is left or right
+          size = Math.min(imgHeight, imgWidth);
+          sx = (imgHeight - size) / 2;
+          sy = (imgWidth - size) / 2;
+        }
+
+        return {
+          sx,
+          sy,
+          sSize: size
+        };
       }
     }
   }
@@ -591,11 +953,18 @@
 
 <style>
   .image-list {
-    margin: 2vw;
+    padding: 1px;
+    background-color: black;
     height: 100%;
   }
 
+  .infos-box {
+    display: grid;
+    place-items: center;
+  }
+
   .info-list {
+    position: relative;
     margin-top: 2vw;
     margin-bottom: 2vw;
   }
@@ -603,17 +972,87 @@
   .info-block {
     text-align: center;
   }
-  .image-list uni-checkbox {
+
+  .info-list uni-checkbox,
+  .info-list checkbox {
     position: absolute;
     z-index: 2;
-    right: 2vw;
-    top: 2vw;
-    padding-left: calc(44vw - 22px);
-    padding-bottom: calc(44vw - 22px);
-    padding-right: 1vw;
-    padding-top: 1vw;
+    padding-left: calc(300px - 3vw - 22px);
+    padding-bottom: calc(225px - 3vw - 22px);
+    padding-right: 3vw;
+    padding-top: 3vw;
   }
+
+  .image-list uni-checkbox,
+  .image-list checkbox {
+    position: absolute;
+    z-index: 2;
+    padding-left: calc(95% - 25px);
+    padding-bottom: calc(95% - 25px);
+    padding-right: 5%;
+    padding-top: 5%;
+  }
+
   .image-list uni-checkbox .uni-checkbox-input {
     margin: 0;
+  }
+
+  .custom-cover {
+    flex-direction: row;
+    position: relative;
+    width: 100%;
+  }
+
+  .custom-cover::before {
+    content: "";
+    display: block;
+    padding-bottom: 100%;
+  }
+
+  .cover-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background-color: rgba($color: #000000, $alpha: 0.4);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 15px;
+    font-size: 14px;
+    color: #fff;
+  }
+
+  .cover-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background-color: black;
+  }
+
+  .canvas {
+    width: 300px;
+    height: 300px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .canvas-image {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+  }
+
+  .canvas-box {
+    width: 300px;
+    height: 300px;
+    overflow: hidden;
+    z-index: -1;
   }
 </style>
